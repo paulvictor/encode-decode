@@ -13,15 +13,8 @@
 
 module Main where
 
-import Control.Concurrent ( forkIO )
-import Control.Monad
-import Control.Monad.Catch (bracket)
-import Data.Function
-import Network.Wai.Handler.Warp ( run )
-import Network.Wai.Middleware.Prometheus ( metricsApp )
 import Options.Applicative (execParser, info)
 import ProgramOptions
-import Prometheus
 import qualified Streamly.Prelude as S
 import Streamly.Internal.Data.Stream.IsStream.Transform (tapRate)
 import Data.Aeson
@@ -29,6 +22,7 @@ import qualified Data.ByteString as BS
 import System.IO ( hClose, openFile, IOMode(ReadWriteMode) )
 import Control.Exception (evaluate)
 import qualified  Streamly.FileSystem.Handle as Handle
+import Streamly.Internal.Data.Stream.Chunked
 
 main :: IO ()
 main = do
@@ -51,8 +45,11 @@ main = do
     (openFile fName ReadWriteMode)
     (hClose)
     (\handle ->
-       Streamly.unfold Handle.reader handle
-       &
+       Streamly.unfold Handle.chunkReader handle
+       & splitOnSuffix (toEnum (fromEnum '\n'))
+       & fmap fromArray
+       & mapMaybe (fmap (BS.length . encode) . decodeStrict bs)
+       & S.mapM evaluate)
     mainLoop
   where
   messagesFromFile hndl =

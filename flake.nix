@@ -8,14 +8,15 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        haskellPackages = pkgs.haskell.packages.ghc962;
+        haskellPackages = pkgs.haskell.packages.ghc94;
         profiledHaskellPackages = haskellPackages.extend(hf: hprev: {
           mkDerivation = args: hprev.mkDerivation {
             enableLibraryProfiling = true;
-          };
+          } // args;
         });
         withThisPackage = hfinal: hprev: {
-          streamly-core = lib.doJailbreak hprev.streamly-core;
+#           streamly-core = lib.doJailbreak hprev.streamly-core;
+#           streamly = lib.doJailbreak hprev.streamly;
           encodeDecodeTest = hfinal.callCabal2nix "encode-decode" ./. {};
         };
         inherit (pkgs.haskell) lib;
@@ -29,7 +30,10 @@
         };
         devShells = rec {
           withoutProfiling = (haskellPackages.extend withThisPackage).shellFor {
+            withHoogle = true;
             packages = p: [p.encodeDecodeTest];
+            buildInputs = with haskellPackages;
+              [ cabal-install ];
           };
           withProfiling = (profiledHaskellPackages.extend withThisPackage).shellFor {
             packages = p: [p.encodeDecodeTest];

@@ -40,40 +40,6 @@ common optimization-options
     ghc-options: -O2
                  -fdicts-strict
 
--- library    uploader-internal
---   exposed-modules:     Uploader.Types
---   build-depends:       base
---                      , cereal
---                      , lens
---                      , profunctors
---                      , bytestring
---                      , text
---                      , containers
---                      , attoparsec
---                      , extra
---                      , errors
---                      , unordered-containers
---   hs-source-dirs:    uploader-internal
-
--- library lz4-internal
---   exposed-modules: LZ4
---                  , Streamly.LZ4
---                  , LZ4.Frame
---   build-depends:   base
---                  , bytestring
---                  , cereal
---                  , streamly
---                  , lens
---                  --, nothunks
---   hs-source-dirs:      lz4
---   include-dirs:        lz4/c
---   c-sources:           lz4/c/lz4.c
---   default-extensions:  CPP
---                      , EmptyDataDecls
---                      , ForeignFunctionInterface
-
-
-
 executable encode-decode-drainer
   import: optimization-options
   -- .hs or .lhs file containing the Main module.
@@ -88,8 +54,6 @@ executable encode-decode-drainer
   -- Other library packages from which modules are imported.
   build-depends:      base
                     , streamly
-                    , lens
-                    , text
                     , bytestring
                     , optparse-applicative
                     , streamly-bytestring
