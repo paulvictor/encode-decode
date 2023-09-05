@@ -91,16 +91,10 @@ executable encode-decode-drainer
                     , lens
                     , text
                     , bytestring
-                    , warp
                     , optparse-applicative
+                    , streamly-bytestring
                     , aeson
                     , exceptions
-                    , containers
-                    , prometheus-client
-                    , wai-middleware-prometheus
-                    , lens-aeson
-                    , errors
-                    , regex-compat
 
   ghc-options:   -ddump-minimal-imports
                  -fsimpl-tick-factor=10000

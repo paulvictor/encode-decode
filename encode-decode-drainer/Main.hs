@@ -28,15 +28,11 @@ import Data.Aeson
 import qualified Data.ByteString as BS
 import System.IO ( hClose, openFile, IOMode(ReadWriteMode) )
 import Control.Exception (evaluate)
+import qualified  Streamly.FileSystem.Handle as Handle
 
 main :: IO ()
 main = do
-  CommandLineArgs
-    { prometheusSettings
-    , fName
-    } <- execParser (info cmdArgsParser mempty)
-  startMetricsApp (port prometheusSettings)
-  logsCounter <- register $ counter (Info "log" "Total logs")
+  CommandLineArgs { fName } <- execParser (info cmdArgsParser mempty)
   let
     mainLoop !hndl =
         S.mapM_ (\logLine -> do
@@ -54,17 +50,12 @@ main = do
   bracket
     (openFile fName ReadWriteMode)
     (hClose)
+    (\handle ->
+       Streamly.unfold Handle.reader handle
+       &
     mainLoop
   where
   messagesFromFile hndl =
     S.repeatM $ BS.hGetLine hndl
     -- BS.getLine
     -- BS.hGetLine hndl
-  updateMetrics counter_ interval i = do
-    putStrLn $
-      "Received " <> show i <> " messages in " <> show interval <> " seconds"
-    unsafeAddCounter counter_ (fromIntegral i)
-  startMetricsApp metricsPort =
-    void $
-      forkIO $
-        run metricsPort metricsApp

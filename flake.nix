@@ -2,44 +2,41 @@
   description = "Flake system for encode-decode";
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    flake-parts.url = "github:hercules-ci/flake-parts";
-    haskell-flake.url = "github:srid/haskell-flake";
-    nixpkgs-140774-workaround.url = "github:srid/nixpkgs-140774-workaround";
+    flake-utils.url = "github:numtide/flake-utils";
   };
-  outputs = inputs@{ self, nixpkgs, flake-parts, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } ({ withSystem, ... }: {
-      systems = nixpkgs.lib.systems.flakeExposed;
-      imports = [
-        inputs.haskell-flake.flakeModule
-      ];
-      perSystem = { self', inputs', pkgs, system, ... }: {
-        legacyPackages = pkgs;
-        haskellProjects.default = {
-          imports = [
-            inputs.nixpkgs-140774-workaround.haskellFlakeProjectModules.default
-            self.haskellFlakeProjectModules.input
-          ];
-          packages.encode-decode.root = ./.;
-
-          devShell = {
-            enable = true;
-            hlsCheck.enable = true;
+  outputs = inputs@{ self, nixpkgs, flake-utils, ... }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
+        haskellPackages = pkgs.haskell.packages.ghc962;
+        profiledHaskellPackages = haskellPackages.extend(hf: hprev: {
+          mkDerivation = args: hprev.mkDerivation {
+            enableLibraryProfiling = true;
           };
-        };
-        packages.default = self'.packages.encode-decode;
-      };
-      flake.haskellFlakeProjectModules = rec {
-        input = { pkgs, ... }: {
-          overrides = import ./overlay.nix { inherit pkgs; };
-        };
-        output = { pkgs, lib, ... }: withSystem pkgs.system (ctx@{ config, ... }: {
-          imports = [
-            input
-          ];
-          source-overrides =
-            lib.mapAttrs (name: ks: ks.root)
-              config.haskellProjects.default.packages;
         });
-      };
-    });
+        withThisPackage = hfinal: hprev: {
+          streamly-core = lib.doJailbreak hprev.streamly-core;
+          encodeDecodeTest = hfinal.callCabal2nix "encode-decode" ./. {};
+        };
+        inherit (pkgs.haskell) lib;
+      in {
+        packages = rec {
+          encodeDecodeTest = (haskellPackages.extend withThisPackage).encodeDecodeTest;
+          encodeDecodeTestProfiled =
+            lib.enableExecutableProfiling
+              ((profiledHaskellPackages.extend withThisPackage).encodeDecodeTest);
+          default = encodeDecodeTest;
+        };
+        devShells = rec {
+          withoutProfiling = (haskellPackages.extend withThisPackage).shellFor {
+            packages = p: [p.encodeDecodeTest];
+          };
+          withProfiling = (profiledHaskellPackages.extend withThisPackage).shellFor {
+            packages = p: [p.encodeDecodeTest];
+          };
+          default = withoutProfiling;
+        };
+
+      }
+    );
 }
